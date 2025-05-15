@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
+	"id": "obsidian-astra",
+	"name": "Astra",
+	"version": "0.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
+	"description": "3D graph view with WebGPU",
+	"author": "Duram Kim",
+	"authorUrl": "https://github.com/alpakaDurumi",
 	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": false
 }

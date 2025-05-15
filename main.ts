@@ -1,17 +1,26 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
+interface AstraSettings {
 	mySetting: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
+const DEFAULT_SETTINGS: AstraSettings = {
 	mySetting: 'default'
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+async function testWebGPU() {
+	const adapter = await (navigator as any).gpu.requestAdapter();
+	const device = await adapter?.requestDevice();
+
+	// console.log("Electron version:", process.versions.electron);
+	// console.log("Chromium version:", process.versions.chrome);
+	console.log("WebGPU Adapter:", adapter);
+	console.log("WebGPU Device:", device);
+}
+
+
+export default class Astra extends Plugin {
+	settings: AstraSettings;
 
 	async onload() {
 		await this.loadSettings();
@@ -27,6 +36,8 @@ export default class MyPlugin extends Plugin {
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('Status Bar Text');
+
+		testWebGPU();
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
@@ -108,9 +119,9 @@ class SampleModal extends Modal {
 }
 
 class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: Astra;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: Astra) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
