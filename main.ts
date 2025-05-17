@@ -1,4 +1,7 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf } from 'obsidian';
+
+import triangleVertWGSL from './shaders/triangle.vert.wgsl';
+import redFragWGSL from './shaders/red.frag.wgsl';
 
 interface AstraSettings {
 	mySetting: string;
@@ -8,14 +11,166 @@ const DEFAULT_SETTINGS: AstraSettings = {
 	mySetting: 'default'
 }
 
-async function testWebGPU() {
-	const adapter = await (navigator as any).gpu.requestAdapter();
-	const device = await adapter?.requestDevice();
+export const VIEW_TYPE_EXAMPLE = 'example-view';
 
-	// console.log("Electron version:", process.versions.electron);
-	// console.log("Chromium version:", process.versions.chrome);
-	console.log("WebGPU Adapter:", adapter);
-	console.log("WebGPU Device:", device);
+export class ExampleView extends ItemView {
+	constructor(leaf: WorkspaceLeaf) {
+		super(leaf);
+	}
+
+	getViewType() {
+		return VIEW_TYPE_EXAMPLE;
+	}
+
+	getDisplayText() {
+		return 'Example view';
+	}
+
+	async onOpen() {
+		const container = this.containerEl.children[1];
+		container.empty();
+		container.createEl('h4', { text: 'Example view' });
+
+		const adapter = await (navigator as any).gpu.requestAdapter();
+		const device = await adapter?.requestDevice();
+
+		const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+
+		// console.log("Electron version:", process.versions.electron);
+		// console.log("Chromium version:", process.versions.chrome);
+		// console.log("WebGPU Adapter:", adapter);
+		// console.log("WebGPU Device:", device);
+
+		const canvas = document.createElement('canvas');
+		canvas.width = 640;
+		canvas.height = 480;
+		// document.body.appendChild(canvas);
+		container.appendChild(canvas);
+
+		const context = canvas.getContext('webgpu') as GPUCanvasContext;
+		const format = (navigator as any).gpu.getPreferredCanvasFormat();
+
+		context.configure({
+			device,
+			format: presentationFormat,
+		});
+
+		const pipeline = device.createRenderPipeline({
+			layout: 'auto',
+			vertex: {
+				module: device.createShaderModule({
+					code: triangleVertWGSL,
+				}),
+			},
+			fragment: {
+				module: device.createShaderModule({
+					code: redFragWGSL,
+				}),
+				targets: [
+					{
+						format: presentationFormat,
+					},
+				],
+			},
+			primitive: {
+				topology: 'triangle-list',
+			},
+		});
+
+		function frame() {
+			const commandEncoder = device.createCommandEncoder();
+			const textureView = context.getCurrentTexture().createView();
+
+			const renderPassDescriptor: GPURenderPassDescriptor = {
+				colorAttachments: [
+					{
+						view: textureView,
+						clearValue: [0, 0, 0, 0], // Clear to transparent
+						loadOp: 'clear',
+						storeOp: 'store',
+					},
+				],
+			};
+
+			const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+			passEncoder.setPipeline(pipeline);
+			passEncoder.draw(3);
+			passEncoder.end();
+
+			device.queue.submit([commandEncoder.finish()]);
+			requestAnimationFrame(frame);
+		}
+
+		requestAnimationFrame(frame);
+
+		// // 간단한 렌더링 커맨드 작성 (여기서는 그냥 캔버스 클리어)
+		// const commandEncoder = device.createCommandEncoder();
+		// const textureView = context.getCurrentTexture().createView();
+		// const renderPassDescriptor: GPURenderPassDescriptor = {
+		// 	colorAttachments: [{
+		// 		view: textureView,
+		// 		clearValue: { r: 1.0, g: 0.6, b: 0.9, a: 1.0 },
+		// 		loadOp: 'clear',
+		// 		storeOp: 'store',
+		// 	}],
+		// };
+
+		// const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+		// passEncoder.end();
+
+		// device.queue.submit([commandEncoder.finish()]);
+
+		// console.log('WebGPU 렌더링 완료');
+
+	}
+
+	async onClose() {
+		// Nothing to clean up.
+	}
+}
+
+async function testWebGPU() {
+	// const adapter = await (navigator as any).gpu.requestAdapter();
+	// const device = await adapter?.requestDevice();
+
+	// // console.log("Electron version:", process.versions.electron);
+	// // console.log("Chromium version:", process.versions.chrome);
+	// console.log("WebGPU Adapter:", adapter);
+	// console.log("WebGPU Device:", device);
+
+	// const canvas = document.createElement('canvas');
+	// canvas.width = 640;
+	// canvas.height = 480;
+	// // document.body.appendChild(canvas);
+	// container.appendChild(canvas);
+
+	// const context = canvas.getContext('webgpu') as GPUCanvasContext;
+	// const format = (navigator as any).gpu.getPreferredCanvasFormat();
+
+	// context.configure({
+	// 	device: device,
+	// 	format: format,
+	// 	alphaMode: 'opaque',
+	// });
+
+	// // 간단한 렌더링 커맨드 작성 (여기서는 그냥 캔버스 클리어)
+	// const commandEncoder = device.createCommandEncoder();
+	// const textureView = context.getCurrentTexture().createView();
+	// const renderPassDescriptor: GPURenderPassDescriptor = {
+	// 	colorAttachments: [{
+	// 		view: textureView,
+	// 		clearValue: { r: 0.3, g: 0.6, b: 0.9, a: 1.0 },
+	// 		loadOp: 'clear',
+	// 		storeOp: 'store',
+	// 	}],
+	// };
+
+	// const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+	// passEncoder.end();
+
+	// device.queue.submit([commandEncoder.finish()]);
+
+	// console.log('WebGPU 렌더링 완료');
 }
 
 
@@ -23,12 +178,20 @@ export default class Astra extends Plugin {
 	settings: AstraSettings;
 
 	async onload() {
+		console.log('loading plugin');
+
 		await this.loadSettings();
+
+		this.registerView(
+			VIEW_TYPE_EXAMPLE,
+			(leaf) => new ExampleView(leaf)
+		);
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
 			// Called when the user clicks the icon.
 			new Notice('This is a notice!');
+			this.activateView();
 		});
 		// Perform additional things with the ribbon
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
@@ -90,7 +253,28 @@ export default class Astra extends Plugin {
 	}
 
 	onunload() {
+		console.log('unloading plugin');
+	}
 
+	async activateView() {
+		const { workspace } = this.app;
+		// const leaf = this.app.workspace.getLeaf(isLocalGraph ? "split" : false);
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
+
+		if (leaves.length > 0) {
+			// A leaf with our view already exists, use that
+			leaf = leaves[0];
+		} else {
+			// Our view could not be found in the workspace, create a new leaf
+			// in the right sidebar for it
+
+			leaf = this.app.workspace.getLeaf(false);
+			await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
+		}
+
+		// "Reveal" the leaf in case it is in a collapsed sidebar
+		workspace.revealLeaf(leaf);
 	}
 
 	async loadSettings() {
@@ -108,12 +292,12 @@ class SampleModal extends Modal {
 	}
 
 	onOpen() {
-		const {contentEl} = this;
+		const { contentEl } = this;
 		contentEl.setText('Woah!');
 	}
 
 	onClose() {
-		const {contentEl} = this;
+		const { contentEl } = this;
 		contentEl.empty();
 	}
 }
@@ -127,7 +311,7 @@ class SampleSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this;
 
 		containerEl.empty();
 

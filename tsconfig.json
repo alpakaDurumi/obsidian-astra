@@ -17,7 +17,11 @@
       "ES6",
       "ES7"
     ],
-    "types": ["@webgpu/types"]
+    "types": [
+      "@webgpu/types",
+      "vite-plugin-glsl/ext"
+    ],
+    "allowSyntheticDefaultImports": true,
   },
   "include": [
     "**/*.ts"
